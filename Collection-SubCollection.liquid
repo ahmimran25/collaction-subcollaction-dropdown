@@ -1,0 +1,1018 @@
+{% doc %}
+  @prompt
+    Create a responsive collection list grid main collection should appear in a grid card layout. Under each main collection, include an option/button to add multiple sub-collections.
+    
+    When a user clicks on a main collection, a dropdown or expandable section should open below it showing all the sub-collections belonging to that main collection., add grid option 
+{% enddoc %}
+{% assign ai_gen_id = block.id | replace: '_', '' | downcase %}
+
+{% style %}
+  .ai-collection-grid-{{ ai_gen_id }} {
+    display: grid;
+    {% if block.settings.grid_layout == 'auto' %}
+      grid-template-columns: repeat(auto-fit, minmax({{ block.settings.min_card_width }}px, 1fr));
+    {% else %}
+      grid-template-columns: repeat({{ block.settings.columns_desktop }}, 1fr);
+    {% endif %}
+    gap: {{ block.settings.grid_gap }}px;
+    padding: {{ block.settings.section_padding }}px 0;
+  }
+
+  .ai-collection-card-{{ ai_gen_id }} {
+    position: relative;
+    background-color: {{ block.settings.card_background_color }};
+    border-radius: {{ block.settings.card_border_radius }}px;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: {{ block.settings.card_border_width }}px solid {{ block.settings.card_border_color }};
+  }
+
+  .ai-collection-card-{{ ai_gen_id }}:hover {
+    transform: translateY(-{{ block.settings.hover_lift }}px);
+    box-shadow: 0 {{ block.settings.hover_lift | times: 2 }}px {{ block.settings.hover_lift | times: 4 }}px rgba(0, 0, 0, 0.1);
+  }
+
+  .ai-collection-image-wrapper-{{ ai_gen_id }} {
+    position: relative;
+    width: 100%;
+    height: {{ block.settings.image_height }}px;
+    overflow: hidden;
+  }
+
+  .ai-collection-image-{{ ai_gen_id }} {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+  }
+
+  .ai-collection-card-{{ ai_gen_id }}:hover .ai-collection-image-{{ ai_gen_id }} {
+    transform: scale(1.05);
+  }
+
+  .ai-collection-image-placeholder-{{ ai_gen_id }} {
+    width: 100%;
+    height: 100%;
+    background-color: #f4f4f4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ai-collection-image-placeholder-{{ ai_gen_id }} svg {
+    width: 60px;
+    height: 60px;
+    opacity: 0.5;
+  }
+
+  .ai-collection-content-{{ ai_gen_id }} {
+    padding: {{ block.settings.card_padding }}px;
+  }
+
+  .ai-collection-title-{{ ai_gen_id }} {
+    font-size: {{ block.settings.title_font_size }}px;
+    font-weight: 600;
+    color: {{ block.settings.title_color }};
+    margin: 0 0 8px;
+    text-decoration: none;
+    display: block;
+  }
+
+  .ai-collection-title-{{ ai_gen_id }}:hover {
+    color: {{ block.settings.title_hover_color }};
+  }
+
+  .ai-collection-description-{{ ai_gen_id }} {
+    font-size: {{ block.settings.description_font_size }}px;
+    color: {{ block.settings.description_color }};
+    margin: 0 0 16px;
+    line-height: 1.4;
+  }
+
+  .ai-collection-actions-{{ ai_gen_id }} {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .ai-collection-view-btn-{{ ai_gen_id }} {
+    padding: 8px 16px;
+    background-color: {{ block.settings.primary_button_color }};
+    color: {{ block.settings.primary_button_text_color }};
+    border: none;
+    border-radius: {{ block.settings.button_border_radius }}px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.3s ease;
+    display: inline-block;
+  }
+
+  .ai-collection-view-btn-{{ ai_gen_id }}:hover {
+    background-color: {{ block.settings.primary_button_hover_color }};
+    color: {{ block.settings.primary_button_text_color }};
+  }
+
+  .ai-collection-expand-btn-{{ ai_gen_id }} {
+    padding: 8px 12px;
+    background-color: {{ block.settings.secondary_button_color }};
+    color: {{ block.settings.secondary_button_text_color }};
+    border: 1px solid {{ block.settings.secondary_button_border_color }};
+    border-radius: {{ block.settings.button_border_radius }}px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .ai-collection-expand-btn-{{ ai_gen_id }}:hover {
+    background-color: {{ block.settings.secondary_button_hover_color }};
+    color: {{ block.settings.secondary_button_hover_text_color }};
+    border-color: {{ block.settings.secondary_button_hover_border_color }};
+  }
+
+  .ai-collection-expand-icon-{{ ai_gen_id }} {
+    width: 16px;
+    height: 16px;
+    transition: transform 0.3s ease;
+  }
+
+  .ai-collection-expand-btn-{{ ai_gen_id }}.expanded .ai-collection-expand-icon-{{ ai_gen_id }} {
+    transform: rotate(180deg);
+  }
+
+  .ai-subcollections-{{ ai_gen_id }} {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+    background-color: {{ block.settings.subcollection_background_color }};
+    border-top: 1px solid {{ block.settings.card_border_color }};
+  }
+
+  .ai-subcollections-{{ ai_gen_id }}.expanded {
+    max-height: 500px;
+    padding: {{ block.settings.card_padding }}px;
+  }
+
+  .ai-subcollections-list-{{ ai_gen_id }} {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+  }
+
+  .ai-subcollection-item-{{ ai_gen_id }} {
+    text-align: center;
+  }
+
+  .ai-subcollection-link-{{ ai_gen_id }} {
+    display: block;
+    text-decoration: none;
+    color: {{ block.settings.subcollection_text_color }};
+    transition: color 0.3s ease;
+  }
+
+  .ai-subcollection-link-{{ ai_gen_id }}:hover {
+    color: {{ block.settings.subcollection_hover_color }};
+  }
+
+  .ai-subcollection-image-{{ ai_gen_id }} {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin: 0 auto 8px;
+    display: block;
+  }
+
+  .ai-subcollection-image-placeholder-{{ ai_gen_id }} {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background-color: #f4f4f4;
+    margin: 0 auto 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ai-subcollection-image-placeholder-{{ ai_gen_id }} svg {
+    width: 30px;
+    height: 30px;
+    opacity: 0.5;
+  }
+
+  .ai-subcollection-title-{{ ai_gen_id }} {
+    font-size: 12px;
+    font-weight: 500;
+    margin: 0;
+  }
+
+  .ai-empty-subcollections-{{ ai_gen_id }} {
+    text-align: center;
+    color: {{ block.settings.description_color }};
+    font-style: italic;
+    padding: 20px;
+  }
+  {% comment %} custom css {% endcomment %}
+  .ai-collection-content-abffbwfarnjvln1hntaigenblock836f57dlm6c4m {
+    text-align: center;
+}
+.ai-collection-content-auly5yxdinw1ec1jznaigenblock836f57df44qbr {
+    text-align: center;
+}
+ {% comment %} custom css {% endcomment %}
+  
+  @media screen and (max-width: 990px) {
+    .ai-collection-grid-{{ ai_gen_id }} {
+      grid-template-columns: repeat({{ block.settings.columns_tablet }}, 1fr);
+    }
+  }
+
+  @media screen and (max-width: 749px) {
+    .ai-collection-grid-{{ ai_gen_id }} {
+      grid-template-columns: repeat({{ block.settings.columns_mobile }}, 1fr);
+      gap: {{ block.settings.grid_gap | times: 0.75 }}px;
+    }
+
+    .ai-collection-actions-{{ ai_gen_id }} {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .ai-collection-view-btn-{{ ai_gen_id }},
+    .ai-collection-expand-btn-{{ ai_gen_id }} {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .ai-subcollections-list-{{ ai_gen_id }} {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+{% endstyle %}
+
+<collection-grid-{{ ai_gen_id }}
+  class="ai-collection-grid-{{ ai_gen_id }}"
+  {{ block.shopify_attributes }}
+>
+  {% for i in (1..8) %}
+    {% liquid
+      assign collection_key = 'main_collection_' | append: i
+      assign main_collection = block.settings[collection_key]
+      
+      assign sub1_key = 'sub_collection_' | append: i | append: '_1'
+      assign sub2_key = 'sub_collection_' | append: i | append: '_2'
+      assign sub3_key = 'sub_collection_' | append: i | append: '_3'
+      assign sub4_key = 'sub_collection_' | append: i | append: '_4'
+      
+      assign sub_collection_1 = block.settings[sub1_key]
+      assign sub_collection_2 = block.settings[sub2_key]
+      assign sub_collection_3 = block.settings[sub3_key]
+      assign sub_collection_4 = block.settings[sub4_key]
+    %}
+
+    {% if main_collection != blank %}
+      <div class="ai-collection-card-{{ ai_gen_id }}" data-collection-id="{{ i }}">
+        <div class="ai-collection-image-wrapper-{{ ai_gen_id }}">
+          {% if main_collection.featured_image %}
+            <img
+              src="{{ main_collection.featured_image | image_url: width: 600 }}"
+              alt="{{ main_collection.featured_image.alt | escape }}"
+              class="ai-collection-image-{{ ai_gen_id }}"
+              loading="lazy"
+              width="600"
+              height="{{ block.settings.image_height }}"
+            >
+          {% else %}
+            <div class="ai-collection-image-placeholder-{{ ai_gen_id }}">
+              {{ 'collection-1' | placeholder_svg_tag }}
+            </div>
+          {% endif %}
+        </div>
+
+        <div class="ai-collection-content-{{ ai_gen_id }}">
+          <a href="{{ main_collection.url }}" class="ai-collection-title-{{ ai_gen_id }}">
+            {{ main_collection.title }}
+          </a>
+
+          {% if main_collection.description != blank and block.settings.show_description %}
+            <div class="ai-collection-description-{{ ai_gen_id }}">
+              {{ main_collection.description | truncate: 120 }}
+            </div>
+          {% endif %}
+
+          <div class="ai-collection-actions-{{ ai_gen_id }}">
+            <a href="{{ main_collection.url }}" class="ai-collection-view-btn-{{ ai_gen_id }}">
+              {{ block.settings.view_collection_text }}
+            </a>
+
+            {% if sub_collection_1 != blank or sub_collection_2 != blank or sub_collection_3 != blank or sub_collection_4 != blank %}
+              <button
+                class="ai-collection-expand-btn-{{ ai_gen_id }}"
+                data-expand-target="subcollections-{{ ai_gen_id }}-{{ i }}"
+                aria-expanded="false"
+              >
+                {{ block.settings.view_subcollections_text }}
+                <svg class="ai-collection-expand-icon-{{ ai_gen_id }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6,9 12,15 18,9"></polyline>
+                </svg>
+              </button>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if sub_collection_1 != blank or sub_collection_2 != blank or sub_collection_3 != blank or sub_collection_4 != blank %}
+          <div
+            class="ai-subcollections-{{ ai_gen_id }}"
+            id="subcollections-{{ ai_gen_id }}-{{ i }}"
+          >
+            <div class="ai-subcollections-list-{{ ai_gen_id }}">
+              {% if sub_collection_1 != blank %}
+                <div class="ai-subcollection-item-{{ ai_gen_id }}">
+                  <a href="{{ sub_collection_1.url }}" class="ai-subcollection-link-{{ ai_gen_id }}">
+                    {% if sub_collection_1.featured_image %}
+                      <img
+                        src="{{ sub_collection_1.featured_image | image_url: width: 160 }}"
+                        alt="{{ sub_collection_1.featured_image.alt | escape }}"
+                        class="ai-subcollection-image-{{ ai_gen_id }}"
+                        loading="lazy"
+                        width="80"
+                        height="80"
+                      >
+                    {% else %}
+                      <div class="ai-subcollection-image-placeholder-{{ ai_gen_id }}">
+                        {{ 'collection-1' | placeholder_svg_tag }}
+                      </div>
+                    {% endif %}
+                    <h4 class="ai-subcollection-title-{{ ai_gen_id }}">{{ sub_collection_1.title }}</h4>
+                  </a>
+                </div>
+              {% endif %}
+
+              {% if sub_collection_2 != blank %}
+                <div class="ai-subcollection-item-{{ ai_gen_id }}">
+                  <a href="{{ sub_collection_2.url }}" class="ai-subcollection-link-{{ ai_gen_id }}">
+                    {% if sub_collection_2.featured_image %}
+                      <img
+                        src="{{ sub_collection_2.featured_image | image_url: width: 160 }}"
+                        alt="{{ sub_collection_2.featured_image.alt | escape }}"
+                        class="ai-subcollection-image-{{ ai_gen_id }}"
+                        loading="lazy"
+                        width="80"
+                        height="80"
+                      >
+                    {% else %}
+                      <div class="ai-subcollection-image-placeholder-{{ ai_gen_id }}">
+                        {{ 'collection-1' | placeholder_svg_tag }}
+                      </div>
+                    {% endif %}
+                    <h4 class="ai-subcollection-title-{{ ai_gen_id }}">{{ sub_collection_2.title }}</h4>
+                  </a>
+                </div>
+              {% endif %}
+
+              {% if sub_collection_3 != blank %}
+                <div class="ai-subcollection-item-{{ ai_gen_id }}">
+                  <a href="{{ sub_collection_3.url }}" class="ai-subcollection-link-{{ ai_gen_id }}">
+                    {% if sub_collection_3.featured_image %}
+                      <img
+                        src="{{ sub_collection_3.featured_image | image_url: width: 160 }}"
+                        alt="{{ sub_collection_3.featured_image.alt | escape }}"
+                        class="ai-subcollection-image-{{ ai_gen_id }}"
+                        loading="lazy"
+                        width="80"
+                        height="80"
+                      >
+                    {% else %}
+                      <div class="ai-subcollection-image-placeholder-{{ ai_gen_id }}">
+                        {{ 'collection-1' | placeholder_svg_tag }}
+                      </div>
+                    {% endif %}
+                    <h4 class="ai-subcollection-title-{{ ai_gen_id }}">{{ sub_collection_3.title }}</h4>
+                  </a>
+                </div>
+              {% endif %}
+
+              {% if sub_collection_4 != blank %}
+                <div class="ai-subcollection-item-{{ ai_gen_id }}">
+                  <a href="{{ sub_collection_4.url }}" class="ai-subcollection-link-{{ ai_gen_id }}">
+                    {% if sub_collection_4.featured_image %}
+                      <img
+                        src="{{ sub_collection_4.featured_image | image_url: width: 160 }}"
+                        alt="{{ sub_collection_4.featured_image.alt | escape }}"
+                        class="ai-subcollection-image-{{ ai_gen_id }}"
+                        loading="lazy"
+                        width="80"
+                        height="80"
+                      >
+                    {% else %}
+                      <div class="ai-subcollection-image-placeholder-{{ ai_gen_id }}">
+                        {{ 'collection-1' | placeholder_svg_tag }}
+                      </div>
+                    {% endif %}
+                    <h4 class="ai-subcollection-title-{{ ai_gen_id }}">{{ sub_collection_4.title }}</h4>
+                  </a>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+  {% endfor %}
+</collection-grid-{{ ai_gen_id }}>
+
+<script>
+  (function() {
+    class CollectionGrid{{ ai_gen_id }} extends HTMLElement {
+      constructor() {
+        super();
+      }
+
+      connectedCallback() {
+        this.expandButtons = this.querySelectorAll('.ai-collection-expand-btn-{{ ai_gen_id }}');
+        this.setupEventListeners();
+      }
+
+      setupEventListeners() {
+        this.expandButtons.forEach((button) => {
+          button.addEventListener('click', (event) => {
+            event.preventDefault();
+            this.toggleSubcollections(button);
+          });
+        });
+      }
+
+      toggleSubcollections(button) {
+        const targetId = button.getAttribute('data-expand-target');
+        const subcollectionsPanel = document.getElementById(targetId);
+        const isExpanded = button.classList.contains('expanded');
+
+        if (isExpanded) {
+          button.classList.remove('expanded');
+          subcollectionsPanel.classList.remove('expanded');
+          button.setAttribute('aria-expanded', 'false');
+        } else {
+          this.closeAllPanels();
+          button.classList.add('expanded');
+          subcollectionsPanel.classList.add('expanded');
+          button.setAttribute('aria-expanded', 'true');
+        }
+      }
+
+      closeAllPanels() {
+        this.expandButtons.forEach((btn) => {
+          btn.classList.remove('expanded');
+          btn.setAttribute('aria-expanded', 'false');
+        });
+
+        this.querySelectorAll('.ai-subcollections-{{ ai_gen_id }}').forEach((panel) => {
+          panel.classList.remove('expanded');
+        });
+      }
+    }
+
+    customElements.define('collection-grid-{{ ai_gen_id }}', CollectionGrid{{ ai_gen_id }});
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Collection grid",
+  "tag": null,
+  "settings": [
+    {
+      "type": "header",
+      "content": "Grid layout"
+    },
+    {
+      "type": "select",
+      "id": "grid_layout",
+      "label": "Grid type",
+      "options": [
+        { "value": "auto", "label": "Auto-fit (responsive)" },
+        { "value": "fixed", "label": "Fixed columns" }
+      ],
+      "default": "auto"
+    },
+    {
+      "type": "range",
+      "id": "columns_desktop",
+      "min": 1,
+      "max": 6,
+      "step": 1,
+      "label": "Columns on desktop",
+      "default": 3
+    },
+    {
+      "type": "range",
+      "id": "columns_tablet",
+      "min": 1,
+      "max": 4,
+      "step": 1,
+      "label": "Columns on tablet",
+      "default": 2
+    },
+    {
+      "type": "select",
+      "id": "columns_mobile",
+      "label": "Columns on mobile",
+      "options": [
+        { "value": "1", "label": "1" },
+        { "value": "2", "label": "2" }
+      ],
+      "default": "1"
+    },
+    {
+      "type": "range",
+      "id": "min_card_width",
+      "min": 200,
+      "max": 400,
+      "step": 20,
+      "unit": "px",
+      "label": "Minimum card width",
+      "default": 280,
+      "info": "Only applies to auto-fit grid type"
+    },
+    {
+      "type": "range",
+      "id": "grid_gap",
+      "min": 10,
+      "max": 50,
+      "step": 5,
+      "unit": "px",
+      "label": "Grid gap",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "section_padding",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "px",
+      "label": "Section padding",
+      "default": 40
+    },
+    {
+      "type": "header",
+      "content": "Card style"
+    },
+    {
+      "type": "range",
+      "id": "image_height",
+      "min": 150,
+      "max": 400,
+      "step": 25,
+      "unit": "px",
+      "label": "Image height",
+      "default": 250
+    },
+    {
+      "type": "range",
+      "id": "card_padding",
+      "min": 10,
+      "max": 40,
+      "step": 5,
+      "unit": "px",
+      "label": "Card padding",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "card_border_radius",
+      "min": 0,
+      "max": 20,
+      "step": 2,
+      "unit": "px",
+      "label": "Card border radius",
+      "default": 8
+    },
+    {
+      "type": "range",
+      "id": "card_border_width",
+      "min": 0,
+      "max": 4,
+      "step": 1,
+      "unit": "px",
+      "label": "Card border width",
+      "default": 1
+    },
+    {
+      "type": "range",
+      "id": "hover_lift",
+      "min": 0,
+      "max": 10,
+      "step": 1,
+      "unit": "px",
+      "label": "Hover lift effect",
+      "default": 4
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "card_background_color",
+      "label": "Card background",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "card_border_color",
+      "label": "Card border",
+      "default": "#e6e6e6"
+    },
+    {
+      "type": "color",
+      "id": "title_color",
+      "label": "Title color",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "title_hover_color",
+      "label": "Title hover color",
+      "default": "#444444"
+    },
+    {
+      "type": "color",
+      "id": "description_color",
+      "label": "Description color",
+      "default": "#666666"
+    },
+    {
+      "type": "color",
+      "id": "subcollection_background_color",
+      "label": "Subcollection background",
+      "default": "#f9f9f9"
+    },
+    {
+      "type": "color",
+      "id": "subcollection_text_color",
+      "label": "Subcollection text",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "subcollection_hover_color",
+      "label": "Subcollection hover",
+      "default": "#444444"
+    },
+    {
+      "type": "header",
+      "content": "Button colors"
+    },
+    {
+      "type": "color",
+      "id": "primary_button_color",
+      "label": "Primary button background",
+      "default": "#444444"
+    },
+    {
+      "type": "color",
+      "id": "primary_button_text_color",
+      "label": "Primary button text",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "primary_button_hover_color",
+      "label": "Primary button hover",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "secondary_button_color",
+      "label": "Secondary button background",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "secondary_button_text_color",
+      "label": "Secondary button text",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "secondary_button_border_color",
+      "label": "Secondary button border",
+      "default": "#e6e6e6"
+    },
+    {
+      "type": "color",
+      "id": "secondary_button_hover_color",
+      "label": "Secondary button hover background",
+      "default": "#f5f5f5"
+    },
+    {
+      "type": "color",
+      "id": "secondary_button_hover_text_color",
+      "label": "Secondary button hover text",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "secondary_button_hover_border_color",
+      "label": "Secondary button hover border",
+      "default": "#cccccc"
+    },
+    {
+      "type": "header",
+      "content": "Typography"
+    },
+    {
+      "type": "range",
+      "id": "title_font_size",
+      "min": 14,
+      "max": 32,
+      "step": 2,
+      "unit": "px",
+      "label": "Title font size",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "description_font_size",
+      "min": 12,
+      "max": 18,
+      "step": 1,
+      "unit": "px",
+      "label": "Description font size",
+      "default": 14
+    },
+    {
+      "type": "range",
+      "id": "button_border_radius",
+      "min": 0,
+      "max": 20,
+      "step": 2,
+      "unit": "px",
+      "label": "Button border radius",
+      "default": 6
+    },
+    {
+      "type": "header",
+      "content": "Content"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_description",
+      "label": "Show collection descriptions",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "view_collection_text",
+      "label": "View collection button text",
+      "default": "View Collection"
+    },
+    {
+      "type": "text",
+      "id": "view_subcollections_text",
+      "label": "View subcollections button text",
+      "default": "Subcollections"
+    },
+    {
+      "type": "header",
+      "content": "Collection 1"
+    },
+    {
+      "type": "collection",
+      "id": "main_collection_1",
+      "label": "Main collection"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_1_1",
+      "label": "Subcollection 1"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_1_2",
+      "label": "Subcollection 2"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_1_3",
+      "label": "Subcollection 3"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_1_4",
+      "label": "Subcollection 4"
+    },
+    {
+      "type": "header",
+      "content": "Collection 2"
+    },
+    {
+      "type": "collection",
+      "id": "main_collection_2",
+      "label": "Main collection"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_2_1",
+      "label": "Subcollection 1"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_2_2",
+      "label": "Subcollection 2"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_2_3",
+      "label": "Subcollection 3"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_2_4",
+      "label": "Subcollection 4"
+    },
+    {
+      "type": "header",
+      "content": "Collection 3"
+    },
+    {
+      "type": "collection",
+      "id": "main_collection_3",
+      "label": "Main collection"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_3_1",
+      "label": "Subcollection 1"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_3_2",
+      "label": "Subcollection 2"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_3_3",
+      "label": "Subcollection 3"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_3_4",
+      "label": "Subcollection 4"
+    },
+    {
+      "type": "header",
+      "content": "Collection 4"
+    },
+    {
+      "type": "collection",
+      "id": "main_collection_4",
+      "label": "Main collection"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_4_1",
+      "label": "Subcollection 1"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_4_2",
+      "label": "Subcollection 2"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_4_3",
+      "label": "Subcollection 3"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_4_4",
+      "label": "Subcollection 4"
+    },
+    {
+      "type": "header",
+      "content": "Collection 5"
+    },
+    {
+      "type": "collection",
+      "id": "main_collection_5",
+      "label": "Main collection"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_5_1",
+      "label": "Subcollection 1"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_5_2",
+      "label": "Subcollection 2"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_5_3",
+      "label": "Subcollection 3"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_5_4",
+      "label": "Subcollection 4"
+    },
+    {
+      "type": "header",
+      "content": "Collection 6"
+    },
+    {
+      "type": "collection",
+      "id": "main_collection_6",
+      "label": "Main collection"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_6_1",
+      "label": "Subcollection 1"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_6_2",
+      "label": "Subcollection 2"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_6_3",
+      "label": "Subcollection 3"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_6_4",
+      "label": "Subcollection 4"
+    },
+    {
+      "type": "header",
+      "content": "Collection_7"
+    },
+    {
+      "type": "collection",
+      "id": "main_collection_7",
+      "label": "Main collection"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_7_1",
+      "label": "Subcollection 1"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_7_2",
+      "label": "Subcollection 2"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_7_3",
+      "label": "Subcollection 3"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_7_4",
+      "label": "Subcollection 4"
+    },
+     {
+      "type": "header",
+      "content": "Collection_8"
+    },
+    {
+      "type": "collection",
+      "id": "main_collection_8",
+      "label": "Main collection"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_8_1",
+      "label": "Subcollection 1"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_8_2",
+      "label": "Subcollection 2"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_8_3",
+      "label": "Subcollection 3"
+    },
+    {
+      "type": "collection",
+      "id": "sub_collection_8_4",
+      "label": "Subcollection 4"
+    },
+  ],
+  "presets": [
+    {
+      "name": "Collection grid"
+    }
+  ]
+}
+{% endschema %}
